@@ -1,25 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { ROOMS, SEASONS, itemKey, requiredOf } from './data.js'
+import { load, save, useProgress } from './useProgress.js'
 
-const STORAGE_KEY = 'stardew-cc-checked-v1'
 const PREFS_KEY = 'stardew-cc-prefs-v1'
-
-function load(key, fallback) {
-  try {
-    const raw = localStorage.getItem(key)
-    return raw ? JSON.parse(raw) : fallback
-  } catch {
-    return fallback
-  }
-}
-
-function save(key, value) {
-  try {
-    localStorage.setItem(key, JSON.stringify(value))
-  } catch {
-    // armazenamento indisponível (aba anônima etc.) — segue sem persistir
-  }
-}
 
 const doneCount = (bundle, checked) => bundle.items.filter((_, idx) => checked[itemKey(bundle, idx)]).length
 const isBundleDone = (bundle, checked) => doneCount(bundle, checked) >= requiredOf(bundle)
@@ -169,20 +152,55 @@ function MissingList({ checked, season }) {
   )
 }
 
+const STATUS_LABEL = {
+  local: 'Salvo só neste navegador',
+  sincronizando: 'Sincronizando…',
+  ok: 'Sincronizado',
+  offline: 'Sem conexão com o servidor — tentando de novo',
+}
+
+function ShareBar({ fazenda, status, share, leave }) {
+  const [msg, setMsg] = useState('')
+
+  const copy = async (url) => {
+    try {
+      await navigator.clipboard.writeText(url)
+      setMsg('Link copiado!')
+    } catch {
+      setMsg(url)
+    }
+  }
+
+  const onShare = async () => {
+    const url = await share()
+    if (url) copy(url)
+    else setMsg('Não foi possível conectar ao servidor.')
+  }
+
+  return (
+    <div className={`share share-${status}`}>
+      <span className="share-status">
+        <span className="share-dot" /> {STATUS_LABEL[status]}
+        {fazenda && <> · fazenda <code>{fazenda}</code></>}
+      </span>
+      {fazenda ? (
+        <>
+          <button onClick={() => copy(window.location.href)}>Copiar link</button>
+          <button className="link" onClick={() => { leave(); setMsg('') }}>Parar de compartilhar</button>
+        </>
+      ) : (
+        <button onClick={onShare}>Compartilhar progresso</button>
+      )}
+      {msg && <span className="share-msg">{msg}</span>}
+    </div>
+  )
+}
+
 export default function App() {
-  const [checked, setChecked] = useState(() => load(STORAGE_KEY, {}))
+  const { checked, toggle, reset: resetProgress, fazenda, status, share, leave } = useProgress()
   const [prefs, setPrefs] = useState(() => load(PREFS_KEY, { season: '', hideDone: false, view: 'conjuntos' }))
 
-  useEffect(() => save(STORAGE_KEY, checked), [checked])
   useEffect(() => save(PREFS_KEY, prefs), [prefs])
-
-  const toggle = (key) =>
-    setChecked((prev) => {
-      const next = { ...prev }
-      if (next[key]) delete next[key]
-      else next[key] = true
-      return next
-    })
 
   const setPref = (patch) => setPrefs((p) => ({ ...p, ...patch }))
 
@@ -191,14 +209,18 @@ export default function App() {
   const totalDone = allBundles.filter((b) => isBundleDone(b, checked)).length
 
   const reset = () => {
-    if (confirm('Desmarcar todos os itens? Isso não pode ser desfeito.')) setChecked({})
+    const msg = fazenda
+      ? 'Desmarcar todos os itens para todos que usam este link? Isso não pode ser desfeito.'
+      : 'Desmarcar todos os itens? Isso não pode ser desfeito.'
+    if (confirm(msg)) resetProgress()
   }
 
   return (
     <div className="app">
       <header className="top">
         <h1>Centro Comunitário</h1>
-        <p className="subtitle">Checklist dos conjuntos de Stardew Valley — seu progresso fica salvo neste navegador.</p>
+        <p className="subtitle">Checklist dos conjuntos de Stardew Valley.</p>
+        <ShareBar fazenda={fazenda} status={status} share={share} leave={leave} />
         <div className="overall">
           <span>{totalDone}/{allBundles.length} conjuntos concluídos</span>
           <Progress value={totalDone} max={allBundles.length} />

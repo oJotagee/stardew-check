@@ -131,3 +131,20 @@ h1 {
   .bundles { grid-template-columns: 1fr; }
   .room { padding: 10px; }
 }
+
+.share {
+  display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; justify-content: center;
+  margin: 0 auto 16px; font-size: 0.9rem;
+}
+.share button {
+  background: var(--paper); color: var(--ink); border: 1px solid var(--border);
+  border-radius: 8px; padding: 4px 12px;
+}
+.share button.link { border: 0; background: none; color: var(--muted); text-decoration: underline; }
+.share code { background: var(--slot); padding: 1px 6px; border-radius: 4px; }
+.share-status { color: var(--muted); display: inline-flex; align-items: center; gap: 6px; }
+.share-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); display: inline-block; }
+.share-ok .share-dot { background: var(--done); }
+.share-sincronizando .share-dot { background: #f2b705; }
+.share-offline .share-dot { background: #c0392b; }
+.share-msg { width: 100%; text-align: center; color: var(--accent); font-weight: 600; word-break: break-all; }
