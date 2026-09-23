@@ -1,30 +1,40 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ROOMS, SEASONS, itemKey, requiredOf } from './data.js'
-import { load, save, useProgress } from './useProgress.js'
+import { ROOMS, SEASONS, itemKey, requiredOf } from './data.ts'
+import type { Bundle as BundleData, Item, Room as RoomData, SeasonKey } from './data.ts'
+import { load, save, useProgress } from './useProgress.ts'
+import type { Checked, SyncStatus } from './useProgress.ts'
 
 const PREFS_KEY = 'stardew-cc-prefs-v1'
 
-const doneCount = (bundle, checked) => bundle.items.filter((_, idx) => checked[itemKey(bundle, idx)]).length
-const isBundleDone = (bundle, checked) => doneCount(bundle, checked) >= requiredOf(bundle)
+type Season = SeasonKey | ''
 
-function Icon({ img, alt }) {
+interface Prefs {
+  season: Season
+  hideDone: boolean
+  view: 'conjuntos' | 'faltando'
+}
+
+const doneCount = (bundle: BundleData, checked: Checked) => bundle.items.filter((_, idx) => checked[itemKey(bundle, idx)]).length
+const isBundleDone = (bundle: BundleData, checked: Checked) => doneCount(bundle, checked) >= requiredOf(bundle)
+
+function Icon({ img, alt }: { img: string; alt: string }) {
   const [broken, setBroken] = useState(false)
   if (broken) return <span className="icon icon-fallback" aria-hidden="true">?</span>
   return <img className="icon" src={`/icons/${img}.png`} alt={alt} loading="lazy" onError={() => setBroken(true)} />
 }
 
-function SeasonDots({ s }) {
+function SeasonDots({ s }: { s: string }) {
   if (s === 'PVOI') return <span className="season-all" title="Ano todo">ano todo</span>
   return (
     <span className="seasons">
-      {s.split('').map((k) => (
+      {(s.split('') as SeasonKey[]).map((k) => (
         <span key={k} className="dot" style={{ background: SEASONS[k].color }} title={SEASONS[k].label} />
       ))}
     </span>
   )
 }
 
-function Progress({ value, max }) {
+function Progress({ value, max }: { value: number; max: number }) {
   const pct = max ? Math.round((value / max) * 100) : 0
   return (
     <div className="progress" role="progressbar" aria-valuenow={value} aria-valuemax={max}>
@@ -33,7 +43,13 @@ function Progress({ value, max }) {
   )
 }
 
-function Bundle({ bundle, checked, toggle, season }) {
+interface ChecklistProps {
+  checked: Checked
+  toggle: (key: string) => void
+  season: Season
+}
+
+function Bundle({ bundle, checked, toggle, season }: ChecklistProps & { bundle: BundleData }) {
   const count = doneCount(bundle, checked)
   const required = requiredOf(bundle)
   const done = count >= required
@@ -63,7 +79,7 @@ function Bundle({ bundle, checked, toggle, season }) {
                 <span className="item-main">
                   <span className="item-name">
                     {item.name}
-                    {item.qty > 1 && <span className="qty"> ×{item.qty}</span>}
+                    {(item.qty ?? 1) > 1 && <span className="qty"> ×{item.qty}</span>}
                     {item.quality && <span className={`quality q-${item.quality}`}>★ {item.quality}</span>}
                   </span>
                   <span className="item-hint">{item.hint}</span>
@@ -79,7 +95,7 @@ function Bundle({ bundle, checked, toggle, season }) {
   )
 }
 
-function Room({ room, checked, toggle, season, hideDone }) {
+function Room({ room, checked, toggle, season, hideDone }: ChecklistProps & { room: RoomData; hideDone: boolean }) {
   const bundlesDone = room.bundles.filter((b) => isBundleDone(b, checked)).length
   const roomDone = bundlesDone === room.bundles.length
   const visible = hideDone ? room.bundles.filter((b) => !isBundleDone(b, checked)) : room.bundles
@@ -107,9 +123,9 @@ function Room({ room, checked, toggle, season, hideDone }) {
 }
 
 // Lista de itens que ainda faltam, agrupados por nome, só de conjuntos incompletos
-function MissingList({ checked, season }) {
+function MissingList({ checked, season }: { checked: Checked; season: Season }) {
   const rows = useMemo(() => {
-    const map = new Map()
+    const map = new Map<string, { item: Item; qty: number; where: string[] }>()
     for (const room of ROOMS) {
       for (const bundle of room.bundles) {
         if (isBundleDone(bundle, checked)) continue
@@ -152,17 +168,24 @@ function MissingList({ checked, season }) {
   )
 }
 
-const STATUS_LABEL = {
+const STATUS_LABEL: Record<SyncStatus, string> = {
   local: 'Salvo só neste navegador',
   sincronizando: 'Sincronizando…',
   ok: 'Sincronizado',
   offline: 'Sem conexão com o servidor — tentando de novo',
 }
 
-function ShareBar({ fazenda, status, share, leave }) {
+interface ShareBarProps {
+  fazenda: string | null
+  status: SyncStatus
+  share: () => Promise<string | null>
+  leave: () => void
+}
+
+function ShareBar({ fazenda, status, share, leave }: ShareBarProps) {
   const [msg, setMsg] = useState('')
 
-  const copy = async (url) => {
+  const copy = async (url: string) => {
     try {
       await navigator.clipboard.writeText(url)
       setMsg('Link copiado!')
@@ -198,11 +221,11 @@ function ShareBar({ fazenda, status, share, leave }) {
 
 export default function App() {
   const { checked, toggle, reset: resetProgress, fazenda, status, share, leave } = useProgress()
-  const [prefs, setPrefs] = useState(() => load(PREFS_KEY, { season: '', hideDone: false, view: 'conjuntos' }))
+  const [prefs, setPrefs] = useState<Prefs>(() => load<Prefs>(PREFS_KEY, { season: '', hideDone: false, view: 'conjuntos' }))
 
   useEffect(() => save(PREFS_KEY, prefs), [prefs])
 
-  const setPref = (patch) => setPrefs((p) => ({ ...p, ...patch }))
+  const setPref = (patch: Partial<Prefs>) => setPrefs((p) => ({ ...p, ...patch }))
 
   const mainRooms = ROOMS.filter((r) => !r.bonus)
   const allBundles = mainRooms.flatMap((r) => r.bundles)
@@ -244,8 +267,8 @@ export default function App() {
         </div>
         <div className="seasons-filter">
           <button className={!prefs.season ? 'active' : ''} onClick={() => setPref({ season: '' })}>Todas</button>
-          {Object.entries(SEASONS).map(([k, v]) => (
-            <button key={k} className={prefs.season === k ? 'active' : ''} onClick={() => setPref({ season: k })} style={{ '--season': v.color }}>
+          {(Object.entries(SEASONS) as [SeasonKey, (typeof SEASONS)[SeasonKey]][]).map(([k, v]) => (
+            <button key={k} className={prefs.season === k ? 'active' : ''} onClick={() => setPref({ season: k })}>
               <span className="dot" style={{ background: v.color }} /> {v.label}
             </button>
           ))}

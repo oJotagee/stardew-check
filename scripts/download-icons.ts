@@ -3,7 +3,7 @@
 import { mkdirSync, existsSync, statSync, rmSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
-import { ROOMS } from '../src/data.js'
+import { ROOMS } from '../src/data.ts'
 
 const dir = fileURLToPath(new URL('../public/icons/', import.meta.url))
 mkdirSync(dir, { recursive: true })

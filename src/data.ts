@@ -5,18 +5,56 @@
 // Item sem estação definida pode ser obtido o ano todo.
 // `img` é o nome do arquivo na wiki em inglês (baixado para public/icons).
 
+export type SeasonKey = 'P' | 'V' | 'O' | 'I'
+export type Quality = 'prata' | 'ouro'
+
+export interface Item {
+  name: string
+  /** Nome do arquivo do ícone (wiki em inglês), sem extensão */
+  img: string
+  hint: string
+  /** Estações em que o item pode ser obtido, ex.: 'PV' */
+  s: string
+  qty?: number
+  quality?: Quality
+}
+
+export interface Bundle {
+  id: string
+  name: string
+  reward: string
+  /** Quantos itens são necessários; padrão = todos */
+  required?: number
+  items: Item[]
+}
+
+export interface Room {
+  id: string
+  name: string
+  reward: string
+  /** Sala liberada só depois do Centro (Mercado Joja) */
+  bonus?: boolean
+  bundles: Bundle[]
+}
+
 const ALL = 'PVOI'
 
-const i = (name, img, hint, s = ALL, extra = {}) => ({ name, img, hint, s, ...extra })
+const i = (name: string, img: string, hint: string, s = ALL, extra: Pick<Item, 'qty' | 'quality'> = {}): Item => ({
+  name,
+  img,
+  hint,
+  s,
+  ...extra,
+})
 
-export const SEASONS = {
+export const SEASONS: Record<SeasonKey, { label: string; color: string }> = {
   P: { label: 'Primavera', color: '#6dbf4b' },
   V: { label: 'Verão', color: '#f2b705' },
   O: { label: 'Outono', color: '#d9661f' },
   I: { label: 'Inverno', color: '#5fa8d3' },
 }
 
-export const ROOMS = [
+export const ROOMS: Room[] = [
   {
     id: 'artesanato',
     name: 'Sala de Artesanato',
@@ -401,5 +439,5 @@ export const ROOMS = [
 ]
 
 // Chave única de cada item: "<bundleId>:<índice>"
-export const itemKey = (bundle, idx) => `${bundle.id}:${idx}`
-export const requiredOf = (bundle) => bundle.required ?? bundle.items.length
+export const itemKey = (bundle: Bundle, idx: number) => `${bundle.id}:${idx}`
+export const requiredOf = (bundle: Bundle) => bundle.required ?? bundle.items.length

@@ -6,9 +6,9 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 const CHECKED_KEY = 'stardew-cc-checked-v1'
 const FAZENDA_KEY = 'stardew-cc-fazenda-v1'
-const POLL_MS = 5000
+const POLL_MS = 30000
 
-export function load(key, fallback) {
+export function load<T>(key: string, fallback: T): T {
   try {
     const raw = localStorage.getItem(key)
     return raw ? JSON.parse(raw) : fallback
@@ -17,7 +17,7 @@ export function load(key, fallback) {
   }
 }
 
-export function save(key, value) {
+export function save(key: string, value: unknown) {
   try {
     if (value === null) localStorage.removeItem(key)
     else localStorage.setItem(key, JSON.stringify(value))
@@ -26,19 +26,22 @@ export function save(key, value) {
   }
 }
 
-function setUrlFazenda(fazenda) {
+function setUrlFazenda(fazenda: string | null) {
   const url = new URL(window.location.href)
   if (fazenda) url.searchParams.set('fazenda', fazenda)
   else url.searchParams.delete('fazenda')
   window.history.replaceState(null, '', url)
 }
 
-const initialFazenda = () => new URLSearchParams(window.location.search).get('fazenda') || load(FAZENDA_KEY, null)
+const initialFazenda = () => new URLSearchParams(window.location.search).get('fazenda') || load<string | null>(FAZENDA_KEY, null)
+
+export type Checked = Record<string, true>
+export type SyncStatus = 'local' | 'sincronizando' | 'ok' | 'offline'
 
 export function useProgress() {
-  const [checked, setChecked] = useState(() => load(CHECKED_KEY, {}))
-  const [fazenda, setFazenda] = useState(initialFazenda)
-  const [status, setStatus] = useState(fazenda ? 'sincronizando' : 'local')
+  const [checked, setChecked] = useState<Checked>(() => load<Checked>(CHECKED_KEY, {}))
+  const [fazenda, setFazenda] = useState<string | null>(initialFazenda)
+  const [status, setStatus] = useState<SyncStatus>(fazenda ? 'sincronizando' : 'local')
   // Uma consulta só é aplicada se nenhuma gravação começou/estava em andamento
   // durante ela — assim não "desfaz" um clique que ainda não chegou ao servidor.
   const pending = useRef(0)
@@ -56,9 +59,9 @@ export function useProgress() {
     const before = writes.current
     try {
       const res = await fetch(`/api/progresso?fazenda=${encodeURIComponent(fazenda)}`)
-      if (!res.ok) throw new Error(res.status)
-      const { itens } = await res.json()
-      if (pending.current === 0 && writes.current === before) setChecked(Object.fromEntries(itens.map((k) => [k, true])))
+      if (!res.ok) throw new Error(String(res.status))
+      const { itens } = (await res.json()) as { itens: string[] }
+      if (pending.current === 0 && writes.current === before) setChecked(Object.fromEntries(itens.map((k) => [k, true as const])))
       setStatus('ok')
     } catch {
       setStatus('offline')
@@ -77,7 +80,8 @@ export function useProgress() {
     }
   }, [fazenda, pull])
 
-  const send = async (method, body, target = fazenda) => {
+  const send = async (method: 'POST' | 'DELETE', body?: Record<string, boolean>, target = fazenda): Promise<boolean> => {
+    if (!target) return false
     pending.current++
     writes.current++
     try {
@@ -87,7 +91,7 @@ export function useProgress() {
         headers: { 'Content-Type': 'application/json' },
         body: body ? JSON.stringify({ fazenda: target, itens: body }) : undefined,
       })
-      if (!res.ok) throw new Error(res.status)
+      if (!res.ok) throw new Error(String(res.status))
       setStatus('ok')
       return true
     } catch {
@@ -98,7 +102,7 @@ export function useProgress() {
     }
   }
 
-  const toggle = (key) => {
+  const toggle = (key: string) => {
     const value = !checked[key]
     setChecked((prev) => {
       const next = { ...prev }
@@ -115,7 +119,7 @@ export function useProgress() {
   }
 
   // Cria uma fazenda nova com o progresso atual e devolve o link para compartilhar
-  const share = async () => {
+  const share = async (): Promise<string | null> => {
     const id = crypto.randomUUID().replace(/-/g, '').slice(0, 10)
     setStatus('sincronizando')
     const ok = await send('POST', checked, id)

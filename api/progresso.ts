@@ -5,10 +5,10 @@
 // Só os itens marcados são guardados (uma linha por item).
 import { neon } from '@neondatabase/serverless'
 
-const sql = neon(process.env.DATABASE_URL ?? process.env.POSTGRES_URL)
+const sql = neon(process.env.DATABASE_URL ?? process.env.POSTGRES_URL ?? '')
 
 // Cria a tabela na primeira chamada, assim não é preciso rodar SQL manualmente
-let ready
+let ready: Promise<unknown> | undefined
 const ensureTable = () =>
   (ready ??= sql`
     CREATE TABLE IF NOT EXISTS progresso (
@@ -23,9 +23,9 @@ const ensureTable = () =>
 const FAZENDA_RE = /^[a-z0-9-]{4,40}$/
 const ITEM_RE = /^[a-z0-9-]{1,40}:\d{1,2}$/
 
-const json = (data, status = 200) => Response.json(data, { status, headers: { 'Cache-Control': 'no-store' } })
+const json = (data: unknown, status = 200) => Response.json(data, { status, headers: { 'Cache-Control': 'no-store' } })
 
-export async function GET(request) {
+export async function GET(request: Request) {
   const fazenda = new URL(request.url).searchParams.get('fazenda')
   if (!FAZENDA_RE.test(fazenda ?? '')) return json({ erro: 'fazenda inválida' }, 400)
   await ensureTable()
@@ -33,11 +33,11 @@ export async function GET(request) {
   return json({ itens: rows.map((r) => r.item) })
 }
 
-export async function POST(request) {
-  const body = await request.json().catch(() => null)
-  const fazenda = body?.fazenda
+export async function POST(request: Request) {
+  const body = (await request.json().catch(() => null)) as { fazenda?: unknown; itens?: unknown } | null
+  const fazenda = typeof body?.fazenda === 'string' ? body.fazenda : ''
   const itens = body?.itens
-  if (!FAZENDA_RE.test(fazenda ?? '') || typeof itens !== 'object' || itens === null) {
+  if (!FAZENDA_RE.test(fazenda) || typeof itens !== 'object' || itens === null) {
     return json({ erro: 'corpo inválido' }, 400)
   }
   const entries = Object.entries(itens)
@@ -54,7 +54,7 @@ export async function POST(request) {
   return json({ ok: true })
 }
 
-export async function DELETE(request) {
+export async function DELETE(request: Request) {
   const fazenda = new URL(request.url).searchParams.get('fazenda')
   if (!FAZENDA_RE.test(fazenda ?? '')) return json({ erro: 'fazenda inválida' }, 400)
   await ensureTable()

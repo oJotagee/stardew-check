@@ -21,13 +21,13 @@ Checklist dos conjuntos do Centro Comunitário de Stardew Valley, com progresso 
 
 ## Encontrou um erro?
 
-Abra uma [issue](https://github.com/oJotagee/stardew-check/issues) ou mande um PR. Os dados dos conjuntos ficam todos em [`src/data.js`](src/data.js).
+Abra uma [issue](https://github.com/oJotagee/stardew-check/issues) ou mande um PR. Os dados dos conjuntos ficam todos em [`src/data.ts`](src/data.ts).
 
 ---
 
 ## Para desenvolvedores
 
-Feito com React + Vite. Hospedado na Vercel, com banco Postgres no [Neon](https://neon.tech) para o progresso compartilhado.
+Feito com React + TypeScript + Vite. Hospedado na Vercel, com banco Postgres no [Neon](https://neon.tech) para o progresso compartilhado.
 
 ### Rodar local
 
@@ -58,11 +58,11 @@ A tabela é criada automaticamente na primeira chamada da API.
 
 | Arquivo | O que faz |
 |---|---|
-| `src/data.js` | Conjuntos, itens, estações e dicas |
-| `src/useProgress.js` | Estado, localStorage e sincronização |
-| `src/App.jsx` | Interface |
-| `api/progresso.js` | Função serverless (GET/POST/DELETE) usando o Neon |
-| `scripts/download-icons.mjs` | Baixa os ícones da wiki para `public/icons` (`npm run icons`) |
+| `src/data.ts` | Conjuntos, itens, estações e dicas |
+| `src/useProgress.ts` | Estado, localStorage e sincronização |
+| `src/App.tsx` | Interface |
+| `api/progresso.ts` | Função serverless (GET/POST/DELETE) usando o Neon |
+| `scripts/download-icons.ts` | Baixa os ícones da wiki para `public/icons` (`npm run icons`) |
 
 ## Créditos
 
